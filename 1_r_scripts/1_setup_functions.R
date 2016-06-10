@@ -7,27 +7,25 @@
 
 # SETUP: LOAD PACKAGES AND PROJECT SETTINGS -------------------------------------------------------
 
-# require(scales)         # for ggplot2 label formatting (e.g., 'dollar', 'percent', ect.)
-# require(gplots)         # for converting colors to HEX strings
-# require(grDevices)      # for color palettes
-# require(rgdal)          # for readOGR and others
-# require(sp)             # for spatial objects
-# require(leaflet)        # for interactive maps (NOT leafletR here)
-# require(plyr)           # for rounding (the `round_any` function)
-# require(dplyr)          # for working with data frames
-# require(ggplot2)        # for plotting
+require(scales)         # for ggplot2 label formatting (e.g., 'dollar', 'percent', ect.)
+require(gplots)         # for converting colors to HEX strings
+require(grDevices)      # for color palettes
+require(rgdal)          # for readOGR and others
+require(sp)             # for spatial objects
+require(leaflet)        # for interactive maps (NOT leafletR here)
+require(plyr)           # for rounding (the `round_any` function)
+require(ggplot2)        # for plotting
 # require(tigris)
 # require(acs)
-# require(stringr)        # to pad fips codes
-# require(purrr)
-# require(magrittr)
+require(stringr)        # to pad fips codes
+require(purrr)
+require(magrittr)
 # require(downloader)
 # require(tmap)
 # require(rgeos)
-# require(operator.tools) # for the `notin` function
-# require(tidyr)          # for the `spread` function
+require(operator.tools) # for the `notin` function
 # require(acs)            # for loading US Census data
-# require(readr)
+require(readr)
 # require(rapport)        # for creating a camel case string
 # require(VGAM)           # for creating estimate median values for neighborhoods
 # require(htmlwidgets)
@@ -36,11 +34,12 @@
 # require(maptools)       # for combining SpatialPolygonsDataFrames
 # require(grid)
 # require(gridExtra)
-# require(useful)         # for "$150K labeling 
-# require(readxl)         # for reading Excel documents
-# require(stringr)        # for string extraction
+require(useful)         # for "$150K labeling
+require(readxl)         # for reading Excel documents
+require(stringr)        # for string extraction
 
-
+require(tidyr)          # for the `spread` function
+require(dplyr)          # for working with data frames
 
 options(scipen=999,stringsAsFactors = FALSE)
 
