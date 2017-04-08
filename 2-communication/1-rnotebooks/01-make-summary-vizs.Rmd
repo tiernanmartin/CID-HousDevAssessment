@@ -1,0 +1,116 @@
+---
+output: html_notebook
+---
+
+```{r hda-setup, echo = FALSE}
+
+library(useful)  
+library(scales)
+library(readxl) 
+library(stringr)  
+library(plyr)
+library(knitr)
+library(rprojroot) 
+library(leaflet)
+library(foreign)
+library(ggthemes)
+library(magrittr)
+library(stringr)
+library(downloader)
+library(webshot)
+library(htmltools)
+library(gplots)
+library(ggmap) 
+library(htmlwidgets)
+library(readxl) 
+library(RColorBrewer)
+library(forcats)
+library(tidyverse)
+library(miscgis)
+library(operator.tools) 
+library(viridisLite) 
+library(sp)
+library(sf)
+options(scipen=999,stringsAsFactors = FALSE)
+
+root <- rprojroot::is_rstudio_project
+root_file <- root$make_fix_file()
+
+crs_proj <- CRS("+init=epsg:4326") # This project will use WGS 84 projected coordinate system
+crs_geog <- CRS("+init=epsg:2285") # Washington State plane CRS
+```
+
+
+```{r hda-load-objs, echo = FALSE}
+
+# The data are stored as csv files, which is one of the format choices that the Shiny interface can output
+
+# Load Change Potential dataframes
+
+if(!file.exists(root_file('./1-data/3-interim/hda-chng-pot-df.Rds'))){
+        
+        # Read the csv (originally from the Shiny tool)
+        
+        chngpot_df <- read_csv(root_file('./1-data/2-external/Hs_Chng_Pot_2016-06-10.csv'))
+        
+        # Save the obj
+        
+        write_rds(chngpot_df,root_file('./1-data/3-interim/hda-chng-pot-df.Rds'))
+}
+
+chngpot_df <- read_rds(root_file('./1-data/3-interim/hda-chng-pot-df.Rds'))
+
+# Load Pres/Dev Opportunity dataframes
+
+if(!file.exists(root_file('./1-data/3-interim/hda-dev-pres-opp-df.Rds'))){
+        
+        # Read the csv (originally from the Shiny tool)
+        
+        devpresopp_df <- read_csv(root_file('./1-data/2-external/DevOp_2016-06-10.csv'))
+        
+        # Save the obj
+        
+        write_rds(devpresopp_df,root_file('./1-data/3-interim/hda-dev-pres-opp-df.Rds'))
+}
+
+devpresopp_df <- read_rds(root_file('./1-data/3-interim/hda-dev-pres-opp-df.Rds'))
+
+```
+
+
+```{r hda-view-data, eval = FALSE}
+
+# Change Potential
+chngpot_df %>% 
+        filter(!is.na(INDEX_A)) %>% 
+        select(NAME,INDEX_A,INDEX_S1_B:INDEX_S3_B,NEW_IDX_B) %>%
+        arrange(desc(INDEX_A)) %>% 
+        View
+
+# Development Opportunity
+devpresopp_df %>% 
+        select(PROP_NAME,INDEX_D_A,INDEX_D_B,INDEX_PM) %>% 
+        mutate(
+                FILTER = if_else(is.na(INDEX_D_A)&is.na(INDEX_D_B)&is.na(INDEX_PM),
+                       FALSE,TRUE)
+               ) %>% 
+        filter(FILTER) %>% 
+        select(-FILTER) %>% 
+        arrange(desc(INDEX_D_A)) %>% 
+        View
+
+# Preservation Opportunity
+devpresopp_df %>% 
+        select(PROP_NAME,INDEX_P_A,INDEX_P_B) %>% 
+        mutate(
+                FILTER = if_else(is.na(INDEX_P_A)&is.na(INDEX_P_B),
+                                 FALSE,TRUE)
+        ) %>% 
+        filter(FILTER) %>% 
+        select(-FILTER) %>% 
+        arrange(desc(INDEX_P_A)) %>% 
+        View
+
+
+```
+
