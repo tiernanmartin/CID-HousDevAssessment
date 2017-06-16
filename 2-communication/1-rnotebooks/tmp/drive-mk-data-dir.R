@@ -1,25 +1,46 @@
+# Example showing the purpose of the function ----
+
+options(httr_oob_default=TRUE) 
+drive_auth(new_user = TRUE)
+
 mkdir_df <- tibble::tribble(
-                   ~name,                                      ~path,
- "CID-HousDevAssessment",                       "~/data/futurewise/",
-                 "1-raw",  "~/data/futurewise/CID-HousDevAssessment",
-            "2-external",  "~/data/futurewise/CID-HousDevAssessment",
-             "3-interim",  "~/data/futurewise/CID-HousDevAssessment",
-               "4-ready",  "~/data/futurewise/CID-HousDevAssessment"
-                                                                        )
+                                        ~name,                                                    ~path,
+                      "CID-HousDevAssessment",                               "~/Futurewise/YCC/SCIDpda",
+                                     "1-data",         "~/Futurewise/YCC/SCIDpda/CID-HousDevAssessment",
+                                      "1-raw",  "~/Futurewise/YCC/SCIDpda/CID-HousDevAssessment/1-data",
+                                 "2-external",  "~/Futurewise/YCC/SCIDpda/CID-HousDevAssessment/1-data",
+                                  "3-interim",  "~/Futurewise/YCC/SCIDpda/CID-HousDevAssessment/1-data",
+                                    "4-ready",  "~/Futurewise/YCC/SCIDpda/CID-HousDevAssessment/1-data"
+                     )
+
+
 mkdir_df %>% 
         transpose %>% 
         map(~ drive_mkdir(name = .x$name, path = .x$path, verbose = FALSE) %>% drive_share(role = "commenter", type = "anyone")
         )
 
+# Upload some files ----
 
-df <- tibble("folders" = list.files(path = "./1-data",all.files = FALSE,full.names = TRUE)) %>% 
-        mutate(name = basename(folders))
+# Prepare the names and paths
 
-test_folder <- df[1,1][[1]]
+files_df <- 
+        tibble("from" = list.files('./1-data/2-external',full.names = TRUE)) %>% 
+        mutate(name = basename(from))
 
-test_name <- df[1,2][[1]]
 
-drive_upload(from = test_folder,
-             name = test_name,
-             folder = drive_path("~/data/futurewise/CID-HousDevAssessment"),
-             type = "application/vnd.google-apps.folder")
+# double-check the folder exists
+
+dest_folder <- drive_path("~/Futurewise/YCC/SCIDpda/CID-HousDevAssessment/1-data/2-external")
+is_folder(dest_folder)
+
+
+# Upload
+
+files_df %>% 
+        transpose %>% 
+        map(
+                ~ drive_upload(from = .x$from, 
+                               name = .x$name,
+                               folder = dest_folder)
+    )
+
