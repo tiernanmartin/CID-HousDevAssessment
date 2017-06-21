@@ -1,5 +1,5 @@
 ---
-output: html_notebook
+output: html_document
 ---
 
 ```{r hda-setup, echo = FALSE}
@@ -31,6 +31,7 @@ library(operator.tools)
 library(viridisLite) 
 library(sp)
 library(sf)
+library(googledrive)
 options(scipen=999,stringsAsFactors = FALSE)
 
 root <- rprojroot::is_rstudio_project
@@ -45,35 +46,18 @@ crs_geog <- CRS("+init=epsg:2285") # Washington State plane CRS
 
 # The data are stored as csv files, which is one of the format choices that the Shiny interface can output
 
+# If running in R
+
+
 # Load Change Potential dataframes
 
-if(!file.exists(root_file('./1-data/3-interim/hda-chng-pot-df.Rds'))){
-        
-        # Read the csv (originally from the Shiny tool)
-        
-        chngpot_df <- read_csv(root_file('./1-data/2-external/Hs_Chng_Pot_2016-06-10.csv'))
-        
-        # Save the obj
-        
-        write_rds(chngpot_df,root_file('./1-data/3-interim/hda-chng-pot-df.Rds'))
-}
-
-chngpot_df <- read_rds(root_file('./1-data/3-interim/hda-chng-pot-df.Rds'))
+chngpot_df <- drive_read(drive_ls("~/Futurewise/YCC/SCIDpda/CID-HousDevAssessment/1-data/2-external",pattern = "Hs_Chng"), read_csv)
 
 # Load Pres/Dev Opportunity dataframes
 
-if(!file.exists(root_file('./1-data/3-interim/hda-dev-pres-opp-df.Rds'))){
-        
-        # Read the csv (originally from the Shiny tool)
-        
-        devpresopp_df <- read_csv(root_file('./1-data/2-external/DevOp_2016-06-10.csv'))
-        
-        # Save the obj
-        
-        write_rds(devpresopp_df,root_file('./1-data/3-interim/hda-dev-pres-opp-df.Rds'))
-}
+devpresopp_df <- drive_read(dribble = drive_ls("~/Futurewise/YCC/SCIDpda/CID-HousDevAssessment/1-data/2-external",pattern = "DevOp"),
+                            read_fun = read_csv)
 
-devpresopp_df <- read_rds(root_file('./1-data/3-interim/hda-dev-pres-opp-df.Rds'))
 
 ```
 
