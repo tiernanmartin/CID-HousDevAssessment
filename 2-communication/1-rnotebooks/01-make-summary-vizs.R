@@ -96,7 +96,7 @@ hcp_by_bldg <- {
                 cp1 <- 
                         cp %>% 
                         filter(!is.na(INDEX_A)) %>% 
-                        select(PIN,NAME,CONDITION,RRIO,URM,PRMT_VAL,VLTN_COUNT,OCC_RATE,WILL_SELL,TURNOVER,NEIGHBORS, matches("SCORE_1_")) %>% 
+                        select(NAME, matches("SCORE_1_")) %>% 
                         mutate(CODENAME = paste("Building",make_id(rn = n(),.shuffle = FALSE))) %>% 
                         select(CODENAME,everything())
                 cp2 <- 
@@ -151,13 +151,151 @@ hcp_by_bldg <- {
 
 # Change Potential: Plot 2 ----
 
-# Unfinished (6/21/2017)
+
 hcp_by_rent <- {
         make_hcp_by_rent <- function(){
+                
+                # Note: the YR_BUILT column is mislabeled - it should be "effective year built" (http://www.kingcounty.gov/~/media/Assessor/AreaReports/2010/Commercial/174.ashx)
+                
+                median_yrbuilt <- median(cp$YR_BUILT,na.rm = TRUE)
+                
+                yr_built_grps <- c("pre-1975", "1975 or later")
+                
+                studio_grps <- c( "low", "moderate", "high","no data")
+                
+                cp1 <- 
+                        cp %>% 
+                        filter(!is.na(INDEX_A)) %>% 
+                        mutate(YR_BUILT_FCT = case_when(
+                                YR_BUILT >= median_yrbuilt ~ yr_built_grps[2],
+                                TRUE ~ yr_built_grps[1]
+                                ) %>% fct_relevel(yr_built_grps),
+                               STUDIO_FCT = case_when(
+                                       is.na(STUDIO) ~ studio_grps[1],
+                                       STUDIO<600 ~ studio_grps[2],
+                                       between(STUDIO,600,800) ~ studio_grps[3],
+                                       TRUE ~ studio_grps[4]
+                               ) %>% fct_relevel(studio_grps)
+                               ) %>%
+                        select(NAME,matches("STUDIO"),matches("BUILT"),HOUS_UNITS,RES_TYPE,matches("SCORE_1_")) %>% 
+                        gather(INDICATOR, SCORE, SCORE_1_1B:SCORE_1_9B) %>% 
+                        mutate(SCORE = abs(SCORE),
+                               GOTSCORE = if_else(!is.na(SCORE) & SCORE != 0,1,0),
+                               IND_NAME = NA_character_,
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_1B','Building Condition',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_2B','RRIO',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_3B','Unreinforced Masonry',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_4B','Permit Value',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_5B','Code Violation',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_6B','Occupancy Rate',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_7B','Owner Willing to Sell',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_8B','Recent Turnover',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_9B','High DevOpp Neighbors',IND_NAME),
+                               IND_NAME_FCT = fct_reorder(factor(IND_NAME),GOTSCORE,sum,na.rm = TRUE)) %>% 
+                        group_by(YR_BUILT_FCT,IND_NAME_FCT) %>% 
+                        summarise(SCORE = sum(SCORE, na.rm = TRUE),
+                                  N = paste("n =",n())) 
+                
+                gg1 <- ggplot(data = cp1, aes(x = YR_BUILT_FCT, y = SCORE, fill = IND_NAME_FCT))       
+                gg1 <- gg1 + geom_bar(stat = "identity",position = position_fill(), color = "white")
+                gg1 <- gg1 + geom_text(aes(x = YR_BUILT_FCT, y = .05, label = N), color = "white")
+                gg1 <- gg1 + scale_y_continuous(labels = percent_format()) 
+                gg1 <- gg1 + scale_fill_hue(h = c(0, 360) + 15, c = 100, l = 70, h.start = 180,
+                                            direction = -1, na.value = "grey50")
+                gg1 <- gg1 + theme_minimal()
+                gg1 <- gg1 + theme(text=element_text(colour = "gray30")) 
+                gg1 <- gg1 + theme(axis.ticks.y=element_blank())
+                gg1 <- gg1 + theme(axis.title.y=element_blank())
+                gg1 <- gg1 + theme(legend.title=element_blank())
+                gg1 <- gg1 + theme(panel.grid=element_blank()) 
+                gg1 
+                
                 
         }
         plot <- make_hcp_by_rent()
         rm(make_hcp_by_rent)
+        plot
+}
+
+# Change Potential: Plot 3 ----
+
+hcp_by_vars <- {
+        make_hcp_by_vars <- function(){
+                
+                # Check out the possible facet variables
+                
+                # cp %>% filter(!is.na(INDEX_A)) %>% select(BLDG_SF:RES_TYPE) %>% mutate_if(is_character,factor) %>% skim
+                
+                
+                median_yrbuilt <- median(cp$YR_BUILT,na.rm = TRUE)
+                
+                yr_built_grps <- c("pre-1975", "1975 or later")
+                
+                studio_grps <- c( "low", "moderate", "high","no data")
+                
+                zoning_grps <- c("IDM-75-85", "IDM 75/85-150", "IDR 45/125-240", "IDR/C 125/150-240")
+                
+                var_lvls <- c("LU_FCT", "YR_BUILT_FCT", "STUDIO_FCT")
+                
+                var_labels <- c("LAND USE", "EFFECTIVE YEAR BUILT", "STUDIO RENT")
+                
+                cp2 <- 
+                        cp %>% 
+                        filter(!is.na(INDEX_A)) %>% 
+                        mutate(LU_FCT = case_when(LU %in% "Commercial/Mixed-Use" ~ "Commercial/\nMixed-Use", TRUE ~ LU) %>% factor,
+                               YR_BUILT_FCT = case_when(
+                                YR_BUILT >= median_yrbuilt ~ yr_built_grps[2],
+                                TRUE ~ yr_built_grps[1]
+                        ) %>% fct_relevel(yr_built_grps),
+                        STUDIO_FCT = case_when(
+                                is.na(STUDIO) ~ studio_grps[1],
+                                STUDIO<600 ~ studio_grps[2],
+                                between(STUDIO,600,800) ~ studio_grps[3],
+                                TRUE ~ studio_grps[4]
+                        ) %>% fct_relevel(studio_grps)
+                        ) %>%
+                        select(NAME,LU_FCT,STUDIO_FCT,YR_BUILT_FCT,matches("SCORE_1_")) %>% 
+                        gather(INDICATOR, SCORE, SCORE_1_1B:SCORE_1_9B) %>% 
+                        gather(VAR_NAME,VAR_LVL,LU_FCT, STUDIO_FCT,YR_BUILT_FCT) %>% 
+                        mutate(VAR_NAME = fct_relevel(VAR_NAME, var_lvls) %>% factor(labels = var_labels),
+                               VAR_LVL = fct_relevel(VAR_LVL,c(yr_built_grps,studio_grps))) %>%
+                        mutate(SCORE = abs(SCORE),
+                               GOTSCORE = if_else(!is.na(SCORE) & SCORE != 0,1,0),
+                               IND_NAME = NA_character_,
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_1B','Building Condition',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_2B','RRIO',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_3B','Unreinforced Masonry',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_4B','Permit Value',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_5B','Code Violation',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_6B','Occupancy Rate',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_7B','Owner Willing to Sell',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_8B','Recent Turnover',IND_NAME),
+                               IND_NAME = if_else(INDICATOR == 'SCORE_1_9B','High DevOpp Neighbors',IND_NAME),
+                               IND_NAME_FCT = fct_reorder(factor(IND_NAME),GOTSCORE,sum,na.rm = TRUE)) %>% 
+                        group_by(VAR_NAME,VAR_LVL,IND_NAME_FCT) %>% 
+                        summarize(SCORE = sum(SCORE, na.rm = TRUE),
+                                  N = paste("n =",n())) 
+                
+                gg1 <- ggplot(data = cp2, aes(x = VAR_LVL, y = SCORE, fill = IND_NAME_FCT))       
+                gg1 <- gg1 + geom_bar(stat = "identity",position = position_fill(), color = "white")
+                gg1 <- gg1 + geom_text(aes(x = VAR_LVL, y = .05, label = N), color = "white")
+                gg1 <- gg1 + facet_wrap(~VAR_NAME,ncol = 2,scales = "free_x",strip.position = "right")
+                gg1 <- gg1 + scale_y_continuous(labels = percent_format()) 
+                gg1 <- gg1 + scale_fill_hue(h = c(0, 360) + 15, c = 100, l = 70, h.start = 180,
+                                            direction = -1, na.value = "grey50")
+                gg1 <- gg1 + theme_minimal()
+                gg1 <- gg1 + theme(text=element_text(colour = "gray30")) 
+                gg1 <- gg1 + theme(axis.ticks.y=element_blank())
+                gg1 <- gg1 + theme(axis.title.y=element_blank())
+                gg1 <- gg1 + theme(legend.title=element_blank())
+                gg1 <- gg1 + theme(panel.grid=element_blank()) 
+                gg1 <- gg1 + theme(legend.position = c(0.75, .25))
+                gg1 
+                
+                
+        }
+        plot <- make_hcp_by_vars()
+        rm(make_hcp_by_vars)
         plot
 }
 
