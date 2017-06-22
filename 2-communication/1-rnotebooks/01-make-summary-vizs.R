@@ -286,7 +286,7 @@ hcp_by_vars <- {
                 gg1 <- gg1 + theme_minimal()
                 gg1 <- gg1 + theme(text=element_text(colour = "gray30")) 
                 gg1 <- gg1 + theme(axis.ticks.y=element_blank())
-                gg1 <- gg1 + theme(axis.title.y=element_blank())
+                gg1 <- gg1 + theme(axis.title=element_blank())
                 gg1 <- gg1 + theme(legend.title=element_blank())
                 gg1 <- gg1 + theme(panel.grid=element_blank()) 
                 gg1 <- gg1 + theme(legend.position = c(0.75, .25))
@@ -298,4 +298,62 @@ hcp_by_vars <- {
         rm(make_hcp_by_vars)
         plot
 }
+
+# Development Potential: Plot 1 ----
+
+dev <-  devpresopp_df %>% filter(!is.na(INDEX_D_A))
+
+# Check the levels of some variables
+dev %>% select(PU_CAT_DES, LU,LU_DETAIL) %>% map_df(fct_infreq, ordered = TRUE) %>% map(table)
+
+# Make Present Use chart
+
+pu_lvls <- list("Housing/Mixed" = c("Multi-Family","Single Family","Mixed Use"),
+             "Retail" = "Retail/Service",
+             "Parking"= "Parking",
+             "Vacant" = "Vacant",
+             "Other"= "")
+
+do_by_pu <- {
+        make_do_by_pu <- function(){
+                do2 <- 
+                        dev %>% 
+                        select(P = PU_CAT_DES,matches("SCORE_\\dDA$|SCORE_D\\dDA")) %>% 
+                        mutate(PU_CAT_DES_FCT = case_when(P %in% pu_lvls[["Housing/Mixed"]] ~ "Housing/Mixed",
+                                                          P %in% pu_lvls[["Retail"]] ~ "Retail" ,
+                                                          P %in% pu_lvls[["Parking"]] ~ "Parking",
+                                                          P %in% pu_lvls[["Vacant"]] ~ "Vacant",
+                                                          TRUE ~ "Other") %>% fct_relevel(names(pu_lvls))) %>% 
+                        gather(IND, SCORE, SCORE_1DA:SCORE_D3DA) %>% 
+                        mutate(GOTSCORE = if_else(!is.na(SCORE) & SCORE != 0,1,0)) %>% 
+                        mutate(IND_NAME = case_when(IND %in% "SCORE_1DA" ~ "REC_LEVEL",
+                                                    IND %in% "SCORE_2DA" ~ "RLTIONSHIP",
+                                                    IND %in% "SCORE_3DA" ~ "WILL_SELL",
+                                                    IND %in% "SCORE_D1DA" ~ "POT_UNIT52",
+                                                    IND %in% "SCORE_D2DA" ~ "CST_UNIT_D",
+                                                    IND %in% "SCORE_D3DA" ~ "NO_BLDG",
+                                                    TRUE ~ NA_character_)) %>%  
+                        mutate(IND_NAME_FCT = fct_reorder(f = IND_NAME,x = SCORE, sum,na.rm = TRUE)) %>% 
+                        group_by(PU_CAT_DES_FCT,IND_NAME_FCT) %>% 
+                        summarise(SCORE = sum(SCORE, na.rm = TRUE),
+                                  N = paste("n =",n()))
+                
+                gg1 <- ggplot(data = do2, aes(x = PU_CAT_DES_FCT, y = SCORE, fill = IND_NAME_FCT))       
+                gg1 <- gg1 + geom_bar(stat = "identity", color = "white")
+                gg1 <- gg1 + geom_text(aes(x = PU_CAT_DES_FCT, y = 50, label = N), color = "white")
+                gg1 <- gg1 + scale_fill_hue(h = c(0, 360) + 15, c = 100, l = 70, h.start = 270,
+                                            direction = -1, na.value = "grey50")
+                gg1 <- gg1 + theme_minimal()
+                gg1 <- gg1 + theme(text=element_text(colour = "gray30")) 
+                gg1 <- gg1 + theme(axis.ticks.y=element_blank())
+                gg1 <- gg1 + theme(axis.title=element_blank())
+                gg1 <- gg1 + theme(legend.title=element_blank())
+                gg1 <- gg1 + theme(panel.grid=element_blank()) 
+                gg1 
+        }
+        plot <- make_do_by_pu()
+        rm(make_do_by_pu)
+        plot        
+}
+
 
