@@ -92,6 +92,8 @@ qplot(INDEX_S1_B, data = cp, facets = RES_TYPE ~ .)
 
 hcp_by_bldg <- {
         make_HCPScoreByBldg <- function(){
+                
+                cp <- chngpot_df
 
                 cp1 <- 
                         cp %>% 
@@ -154,6 +156,8 @@ hcp_by_bldg <- {
 
 hcp_by_rent <- {
         make_hcp_by_rent <- function(){
+                
+                cp <- chngpot_df
                 
                 # Note: the YR_BUILT column is mislabeled - it should be "effective year built" (http://www.kingcounty.gov/~/media/Assessor/AreaReports/2010/Commercial/174.ashx)
                 
@@ -221,6 +225,8 @@ hcp_by_rent <- {
 
 hcp_by_vars <- {
         make_hcp_by_vars <- function(){
+                
+                cp <- chngpot_df
                 
                 # Check out the possible facet variables
                 
@@ -304,18 +310,23 @@ hcp_by_vars <- {
 dev <-  devpresopp_df %>% filter(!is.na(INDEX_D_A))
 
 # Check the levels of some variables
-dev %>% select(PU_CAT_DES, LU,LU_DETAIL) %>% map_df(fct_infreq, ordered = TRUE) %>% map(table)
+dev %>% select(PU_CAT_DES, LU,LU_DETAIL, ZONING,ZONE_CAT) %>% map_df(fct_infreq, ordered = TRUE) %>% map(table)
 
 # Make Present Use chart
 
-pu_lvls <- list("Housing/Mixed" = c("Multi-Family","Single Family","Mixed Use"),
-             "Retail" = "Retail/Service",
-             "Parking"= "Parking",
-             "Vacant" = "Vacant",
-             "Other"= "")
 
 do_by_pu <- {
         make_do_by_pu <- function(){
+                
+                pu_lvls <- list("Housing/Mixed" = c("Multi-Family","Single Family","Mixed Use"),
+                                "Retail" = "Retail/Service",
+                                "Parking"= "Parking",
+                                "Vacant" = "Vacant",
+                                "Other"= "")
+                
+                
+                dev <-  devpresopp_df %>% filter(!is.na(INDEX_D_A))
+                
                 do2 <- 
                         dev %>% 
                         select(P = PU_CAT_DES,matches("SCORE_\\dDA$|SCORE_D\\dDA")) %>% 
@@ -357,3 +368,76 @@ do_by_pu <- {
 }
 
 
+# Development Potential: Plot 2 ----
+
+do_by_vars <- {
+        make_do_by_vars <- function(){
+                
+                pu_lvls <- list("Housing/\nMixed" = c("Multi-Family","Single Family","Mixed Use"),
+                                "Retail" = "Retail/Service",
+                                "Parking"= "Parking",
+                                "Vacant" = "Vacant",
+                                "Other"= "")
+               
+                pu_grps <- names(pu_lvls)
+                
+                zoning_grps <- dev %>% pull(ZONE_CAT) %>% fct_infreq() %>% levels %>% c("Other")
+                
+                var_grps <- unique(c(pu_grps,zoning_grps))
+                
+                var_lvls <- c("PU_CAT_DES_FCT", "ZONE_CAT_FCT")
+                
+                var_labels <- c("PRESENT USE", "ZONING")
+                
+                dev <-  devpresopp_df %>% filter(!is.na(INDEX_D_A))
+                
+                do2 <- 
+                        dev %>% 
+                        select(P = PU_CAT_DES, Z = ZONE_CAT,matches("SCORE_\\dDA$|SCORE_D\\dDA")) %>%  
+                        mutate(PU_CAT_DES_FCT = case_when(P %in% pu_lvls[["Housing/\nMixed"]] ~ "Housing/\nMixed",
+                                                          P %in% pu_lvls[["Retail"]] ~ "Retail" ,
+                                                          P %in% pu_lvls[["Parking"]] ~ "Parking",
+                                                          P %in% pu_lvls[["Vacant"]] ~ "Vacant",
+                                                          TRUE ~ "Other") %>% fct_relevel(names(pu_lvls))) %>% 
+                        mutate(ZONE_CAT_FCT = if_else(is.na(Z),"Other",Z) %>% fct_relevel(names(zoning_grps))) %>% 
+                        gather(IND, SCORE, SCORE_1DA:SCORE_D3DA) %>% 
+                        gather(VAR_NAME,VAR_LVL,PU_CAT_DES_FCT, ZONE_CAT_FCT) %>% 
+                        mutate(VAR_NAME = fct_relevel(VAR_NAME, var_lvls) %>% factor(labels = var_labels),
+                               VAR_LVL = fct_relevel(VAR_LVL,var_grps) %>% fct_relevel("Other", after = Inf)) %>% 
+                        mutate(GOTSCORE = if_else(!is.na(SCORE) & SCORE != 0,1,0)) %>% 
+                        mutate(IND_NAME = case_when(IND %in% "SCORE_1DA" ~ "REC_LEVEL",
+                                                    IND %in% "SCORE_2DA" ~ "RLTIONSHIP",
+                                                    IND %in% "SCORE_3DA" ~ "WILL_SELL",
+                                                    IND %in% "SCORE_D1DA" ~ "POT_UNIT52",
+                                                    IND %in% "SCORE_D2DA" ~ "CST_UNIT_D",
+                                                    IND %in% "SCORE_D3DA" ~ "NO_BLDG",
+                                                    TRUE ~ NA_character_)) %>%  
+                        mutate(IND_NAME_FCT = fct_reorder(f = IND_NAME,x = SCORE, sum,na.rm = TRUE)) %>% 
+                        group_by(VAR_NAME,VAR_LVL,IND_NAME_FCT) %>% 
+                        summarise(SCORE = sum(SCORE, na.rm = TRUE),
+                                  N = paste("n =",n()))
+                
+                
+                gg1 <- ggplot(data = do2, aes(x = VAR_LVL, y = SCORE, fill = IND_NAME_FCT))       
+                gg1 <- gg1 + geom_bar(stat = "identity", color = "white")
+                gg1 <- gg1 + geom_text(aes(x = VAR_LVL, y = 100, label = N), color = "white")
+                gg1 <- gg1 + facet_wrap(~VAR_NAME,ncol = 2,scales = "free_x",strip.position = "right")
+                # gg1 <- gg1 + scale_y_continuous(labels = percent_format()) 
+                gg1 <- gg1 + scale_fill_hue(h = c(0, 360) + 15, c = 100, l = 70, h.start = 180,
+                                            direction = -1, na.value = "grey50")
+                gg1 <- gg1 + theme_minimal()
+                gg1 <- gg1 + theme(text=element_text(colour = "gray30")) 
+                gg1 <- gg1 + theme(axis.ticks.y=element_blank())
+                gg1 <- gg1 + theme(axis.title=element_blank())
+                gg1 <- gg1 + theme(legend.title=element_blank())
+                gg1 <- gg1 + theme(panel.grid=element_blank()) 
+                gg1 <- gg1 + theme(legend.position = c(.9, .85))
+                gg1 
+                
+                
+        }
+        plot <- make_do_by_vars()
+        rm(make_do_by_vars)
+        plot
+        
+}
